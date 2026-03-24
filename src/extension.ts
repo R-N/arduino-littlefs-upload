@@ -214,8 +214,6 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 async function doOperation(context: vscode.ExtensionContext, arduinoContext: ArduinoContext, doUpload: boolean) {
-    //let str = JSON.stringify(arduinoContext, null, 4);
-    //console.log(str);
 
     if ((arduinoContext.boardDetails === undefined) ||  (arduinoContext.fqbn === undefined)){
         vscode.window.showErrorMessage("Board details not available. Compile the sketch once.");
@@ -247,30 +245,29 @@ async function doOperation(context: vscode.ExtensionContext, arduinoContext: Ard
     let esp8266 = false;
     let esp32 = false;
     let esp32variant = "";
-    switch (arduinoContext.fqbn.split(':')[1]) {
-        case "rp2040": {
-            writeEmitter.fire(blue("      Device: ") + green("RP2040 series") + "\r\n");
-            pico = true;
-            rp2350 = arduinoContext.boardDetails.buildProperties['build.chip'].startsWith("rp2350");
-            uploadmethod = getSelectedUploadMethod(arduinoContext.boardDetails);
-            writeEmitter.fire(blue("Upload Using: ") + green(uploadmethod) + "\r\n");
-            break;
+    
+    writeEmitter.fire(bold(arduinoContext.fqbn));
+    let fqbnSplits = arduinoContext.fqbn.toLowerCase().split(':');
+    if (fqbnSplits.includes("rp2040")) {
+        writeEmitter.fire(blue("      Device: ") + green("RP2040 series") + "\r\n");
+        pico = true;
+        rp2350 = arduinoContext.boardDetails.buildProperties['build.chip'].startsWith("rp2350");
+        uploadmethod = getSelectedUploadMethod(arduinoContext.boardDetails);
+        writeEmitter.fire(blue("Upload Using: ") + green(uploadmethod) + "\r\n");
+    } else if (fqbnSplits.includes("esp8266")) {
+        writeEmitter.fire(blue("      Device: ") + green("ESP8266 series") + "\r\n");
+        esp8266 = true;
+    } else if (fqbnSplits.includes("esp32")) {
+        esp32 = true;
+        esp32variant = arduinoContext.boardDetails.buildProperties['build.mcu'];
+        if (!esp32variant){
+            esp32variant = fqbnSplits[2];
         }
-        case "esp8266": {
-            writeEmitter.fire(blue("      Device: ") + green("ESP8266 series") + "\r\n");
-            esp8266 = true;
-            break;
-        }
-        case "esp32": {
-            esp32 = true;
-            esp32variant = arduinoContext.boardDetails.buildProperties['build.mcu'];
-            writeEmitter.fire(blue("      Device: ") + green("ESP32 series, model " + esp32variant) + "\r\n");
-            break;
-        }
-        default: {
-            writeEmitter.fire(red("\r\n\r\nERROR: Only Arduino-Pico RP2040, RP2350, ESP32, and ESP8266 supported.\r\n"));
-            return;
-        }
+        writeEmitter.fire(blue("      Device: ") + green("ESP32 series, model " + esp32variant) + "\r\n");
+    }else{
+        writeEmitter.fire(red("\r\n\r\nERROR: Only Arduino-Pico RP2040, RP2350, ESP32, and ESP8266 supporteda.\r\n"));
+        writeEmitter.fire(red("\r\n\r\nYours: ") + red(arduinoContext.fqbn) + red("\r\n"));
+        return;
     }
 
     // Need to find the selected menu item, then get the associated build values for the FS configuration
@@ -537,8 +534,10 @@ async function doOperation(context: vscode.ExtensionContext, arduinoContext: Ard
                 uploadOpts.unshift(espota + ".py"); // Need to call Python3
             }
         } else {
-            let flashMode = arduinoContext.boardDetails.buildProperties["build.flash_mode"];
-            let flashFreq = arduinoContext.boardDetails.buildProperties["build.flash_freq"];
+            let flashMode = arduinoContext.boardDetails?.buildProperties?.['build.flash_mode'];
+            let flashFreq = arduinoContext.boardDetails?.buildProperties?.['build.flash_freq'];
+            if (!flashMode) flashMode = "dio";
+            if (!flashFreq) flashFreq = "40m";
             let espTool = "esptool";
             let espToolPath = findTool(arduinoContext, "runtime.tools.esptool_py.path");
             if (espToolPath) {
