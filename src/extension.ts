@@ -307,6 +307,12 @@ async function doOperation(context: vscode.ExtensionContext, arduinoContext: Ard
                 if ((parttype === "SPIFFS") || (parttype === "LITTLEFS")) {
                     fsStart = offset;
                     fsEnd = fsStart + length;
+                    // Stop at the FIRST filesystem partition. Layouts with more
+                    // than one spiffs/littlefs-subtype partition (e.g. a web-app
+                    // FS plus a separate userdata FS) would otherwise let the
+                    // LAST match win and target the wrong partition, clobbering
+                    // it. The web/FS partition is conventionally listed first.
+                    break;
                 }
             }
         }
